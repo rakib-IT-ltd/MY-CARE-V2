@@ -1,7 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { signOut } from "firebase/auth";
-import { auth } from "./firebaseConfig";
+import { auth, db } from "./firebaseConfig";
 import { useCurrentUser } from "./CurrentUserContext";
+import {
+  collection, doc, getDoc, getDocs, setDoc, updateDoc, addDoc,
+  query, where, onSnapshot, serverTimestamp,
+} from "firebase/firestore";
 import {
   Menu, Search, Bell, Plus, ChevronRight, ChevronDown, Home as HomeIcon,
   User, BedDouble, GraduationCap, HeartPulse, Wallet,
@@ -1548,23 +1552,48 @@ function CareIdBadge({ compact }) {
 
 // Shared "connect by CARE ID" flow used everywhere someone joins another person
 // by ID: find → preview their profile → send request → they must accept.
-function ConnectByCareId({ label, placeholder, onSent }) {
+function ConnectByCareId({ label, placeholder, onSent, onFind }) {
   const [input, setInput] = useState("");
-  const [status, setStatus] = useState("idle"); // idle | notfound | found | sent
+  const [status, setStatus] = useState("idle"); // idle | loading | notfound | found | sent | error
   const [profile, setProfile] = useState(null);
+  const [errorMsg, setErrorMsg] = useState("");
 
-  const handleFind = () => {
-    const match = CARE_DIRECTORY[input.trim().toUpperCase()];
-    if (match) { setProfile(match); setStatus("found"); }
-    else { setProfile(null); setStatus("notfound"); }
+  const handleFind = async () => {
+    const id = input.trim().toUpperCase();
+    if (!id) return;
+    setErrorMsg("");
+    if (onFind) {
+      setStatus("loading");
+      try {
+        const match = await onFind(id);
+        if (match) { setProfile(match); setStatus("found"); }
+        else { setProfile(null); setStatus("notfound"); }
+      } catch (err) {
+        setProfile(null);
+        setErrorMsg(err.message || "Something went wrong looking that up.");
+        setStatus("error");
+      }
+    } else {
+      const match = CARE_DIRECTORY[id];
+      if (match) { setProfile(match); setStatus("found"); }
+      else { setProfile(null); setStatus("notfound"); }
+    }
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
+    if (onSent) {
+      try {
+        await onSent(profile);
+      } catch (err) {
+        setErrorMsg(err.message || "Couldn't send the request. Try again.");
+        setStatus("error");
+        return;
+      }
+    }
     setStatus("sent");
-    if (onSent) onSent(profile);
   };
 
-  const reset = () => { setInput(""); setStatus("idle"); setProfile(null); };
+  const reset = () => { setInput(""); setStatus("idle"); setProfile(null); setErrorMsg(""); };
 
   return (
     <div style={{ background: "#F7F8F4", border: "1px solid #ECEDE8", borderRadius: 14, padding: 14 }}>
@@ -1583,16 +1612,23 @@ function ConnectByCareId({ label, placeholder, onSent }) {
               fontSize: 12.5, background: "#fff", color: "#1A1A1A"
             }}
           />
-          <button onClick={handleFind} style={{
+          <button onClick={handleFind} disabled={status === "loading"} style={{
             background: GREEN, color: "#fff", border: "none", borderRadius: 8, padding: "9px 16px",
-            fontWeight: 600, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap"
-          }}>Find</button>
+            fontWeight: 600, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap",
+            opacity: status === "loading" ? 0.7 : 1
+          }}>{status === "loading" ? "Finding..." : "Find"}</button>
         </div>
       )}
 
       {status === "notfound" && (
         <div style={{ fontSize: 11.5, color: "#E0435A", marginTop: 8 }}>
           No user found with that CARE ID. Double-check and try again.
+        </div>
+      )}
+
+      {status === "error" && (
+        <div style={{ fontSize: 11.5, color: "#E0435A", marginTop: 8 }}>
+          {errorMsg}
         </div>
       )}
 
@@ -1631,6 +1667,11 @@ function ConnectByCareId({ label, placeholder, onSent }) {
       )}
     </div>
   );
+}
+
+function getInitialsFrom(name) {
+  if (!name) return "NA";
+  return name.trim().split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
 }
 
 // Shows an incoming request from someone else trying to connect with this user,
@@ -1712,20 +1753,59 @@ function RolePicker({ onChoose }) {
   );
 }
 
-function ManagerDashboard() {
+function ManagerDashboard({ currentUser, hostelId, hostelInfo }) {
   const [quickEntryOpen, setQuickEntryOpen] = useState(false);
-  const [incomingRequests, setIncomingRequests] = useState([
-    { key: "ayesha2", name: "Ayesha Hasan", sub: "Wants to join as a student", initials: "AH", bg: "#FCE9EB", fg: "#E0435A" },
-  ]);
-  const [connectedNote, setConnectedNote] = useState("");
+  const [students, setStudents] = useState([]);
+  const [sentInvites, setSentInvites] = useState([]);
 
-  const handleAccept = (key) => {
-    const req = incomingRequests.find(r => r.key === key);
-    setIncomingRequests(rs => rs.filter(r => r.key !== key));
-    if (req) setConnectedNote(`${req.name} is now added to your hostel.`);
+  useEffect(() => {
+    if (!hostelId) return;
+    const unsub = onSnapshot(collection(db, "hostels", hostelId, "students"), (snap) => {
+      setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsub();
+  }, [hostelId]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    const q = query(
+      collection(db, "connectionRequests"),
+      where("fromUid", "==", currentUser.uid),
+      where("type", "==", "hostel_student"),
+      where("status", "==", "pending")
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      setSentInvites(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsub();
+  }, [currentUser]);
+
+  const handleFindStudent = async (careId) => {
+    const q = query(collection(db, "users"), where("careId", "==", careId));
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    const docSnap = snap.docs[0];
+    if (docSnap.id === currentUser.uid) throw new Error("That's your own CARE ID.");
+    const data = docSnap.data();
+    return {
+      uid: docSnap.id,
+      name: data.name,
+      phone: "Not shared yet",
+      initials: getInitialsFrom(data.name),
+      bg: "#E5EFFC", fg: "#2F6FE0",
+    };
   };
-  const handleDecline = (key) => {
-    setIncomingRequests(rs => rs.filter(r => r.key !== key));
+
+  const handleSendInvite = async (profile) => {
+    await addDoc(collection(db, "connectionRequests"), {
+      type: "hostel_student",
+      fromUid: currentUser.uid,
+      fromName: currentUser.name,
+      toUid: profile.uid,
+      hostelId,
+      status: "pending",
+      createdAt: serverTimestamp(),
+    });
   };
 
   return (
@@ -1734,8 +1814,8 @@ function ManagerDashboard() {
       <div style={{ background: GREEN_DARK, borderRadius: 16, padding: 16, color: "#fff", marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>Tue, 17 June 2025</div>
-            <div style={{ fontSize: 11.5, opacity: 0.85, marginTop: 2 }}>Islamic Date: 20 Dhul Hijjah 1446</div>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>{hostelInfo?.name || "Your Hostel"}</div>
+            <div style={{ fontSize: 11.5, opacity: 0.85, marginTop: 2 }}>Managed by {currentUser?.name}</div>
           </div>
           <button onClick={() => setQuickEntryOpen(o => !o)} style={{
             background: "#fff", color: GREEN_DARK, border: "none", borderRadius: 999, padding: "8px 14px",
@@ -1747,38 +1827,67 @@ function ManagerDashboard() {
 
         {quickEntryOpen && (
           <div style={{ marginTop: 14, background: "#fff", borderRadius: 12, padding: 4 }}>
-            <ConnectByCareId label="Add a student by their CARE ID" />
+            <ConnectByCareId
+              label="Add a student by their CARE ID"
+              onFind={handleFindStudent}
+              onSent={handleSendInvite}
+            />
           </div>
         )}
       </div>
 
-      {incomingRequests.length > 0 && (
+      {sentInvites.length > 0 && (
         <div style={{ marginBottom: 16 }}>
-          <SchSectionTitle>Connection Requests</SchSectionTitle>
+          <SchSectionTitle>Pending Invitations</SchSectionTitle>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {incomingRequests.map(r => (
-              <PendingRequestCard
-                key={r.key} name={r.name} sub={r.sub} initials={r.initials} bg={r.bg} fg={r.fg}
-                onAccept={() => handleAccept(r.key)} onDecline={() => handleDecline(r.key)}
-              />
+            {sentInvites.map(r => (
+              <div key={r.id} style={{
+                background: "#fff", border: "1px solid #ECEDE8", borderRadius: 12, padding: 12,
+                display: "flex", alignItems: "center", gap: 10, fontSize: 12.5, color: "#6b6d66"
+              }}>
+                <Clock size={15} color="#E08A20" style={{ flexShrink: 0 }} />
+                Waiting for a student to accept your invite.
+              </div>
             ))}
           </div>
         </div>
       )}
 
-      {connectedNote && (
+      {/* My Students (real) */}
+      <SchSectionTitle>My Students ({students.length})</SchSectionTitle>
+      {students.length === 0 ? (
         <div style={{
-          background: "#E4F3EA", borderRadius: 12, padding: 12, marginBottom: 16,
-          display: "flex", alignItems: "center", gap: 10, fontSize: 12.5, color: "#1A1A1A"
+          background: "#fff", border: "1px solid #ECEDE8", borderRadius: 14, padding: 16,
+          marginBottom: 16, fontSize: 12.5, color: "#6b6d66"
         }}>
-          <CheckCircle2 size={16} color={GREEN} /> {connectedNote}
+          No students yet — use Quick Entry above to add one by their CARE ID.
+        </div>
+      ) : (
+        <div style={{ background: "#fff", border: "1px solid #ECEDE8", borderRadius: 14, padding: "6px 14px", marginBottom: 16 }}>
+          {students.map((s, i) => (
+            <div key={s.id} style={{
+              display: "flex", alignItems: "center", gap: 12, padding: "12px 0",
+              borderBottom: i < students.length - 1 ? "1px solid #F0F1EC" : "none"
+            }}>
+              <div style={{
+                width: 34, height: 34, borderRadius: "50%", background: "#E4F3EA",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontWeight: 700, color: GREEN, fontSize: 12.5, flexShrink: 0
+              }}>{getInitialsFrom(s.name)}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: "#1A1A1A" }}>{s.name}</div>
+                <div style={{ fontSize: 11, color: "#8B8D86" }}>{s.careId}</div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
-      {/* Stats grid */}
+      {/* Stats grid — illustrative demo numbers except Students, which is real */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         {managerStats.map(s => {
           const Icon = s.icon;
+          const value = s.key === "students" ? students.length : s.value;
           return (
             <div key={s.key} style={{ background: "#fff", border: "1px solid #ECEDE8", borderRadius: 14, padding: 14 }}>
               <div style={{
@@ -1787,7 +1896,7 @@ function ManagerDashboard() {
               }}>
                 <Icon size={16} color={s.fg} />
               </div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: "#1A1A1A" }}>{s.value}</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: "#1A1A1A" }}>{value}</div>
               <div style={{ fontSize: 13, fontWeight: 600, color: "#1A1A1A", marginTop: 2 }}>{s.label}</div>
               <div style={{ fontSize: 11, color: "#8B8D86" }}>{s.sub}</div>
             </div>
@@ -1877,45 +1986,76 @@ function ManagerDashboard() {
   );
 }
 
-function StudentDashboard() {
-  const [incomingRequests, setIncomingRequests] = useState([
-    { key: "manager1", name: "Hostel Manager (Green View Hostel)", sub: "Wants to add you as a student", initials: "GV", bg: "#E4F3EA", fg: "#1F8A5A" },
-  ]);
-  const [connectedNote, setConnectedNote] = useState("");
+function StudentDashboard({ currentUser, hostelId, hostelInfo, onAccepted }) {
+  const [pendingRequests, setPendingRequests] = useState([]);
 
-  const handleAccept = (key) => {
-    const req = incomingRequests.find(r => r.key === key);
-    setIncomingRequests(rs => rs.filter(r => r.key !== key));
-    if (req) setConnectedNote("You're now connected with your hostel manager.");
+  useEffect(() => {
+    if (!currentUser) return;
+    const q = query(
+      collection(db, "connectionRequests"),
+      where("toUid", "==", currentUser.uid),
+      where("type", "==", "hostel_student"),
+      where("status", "==", "pending")
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      setPendingRequests(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsub();
+  }, [currentUser]);
+
+  const handleAccept = async (req) => {
+    await updateDoc(doc(db, "connectionRequests", req.id), { status: "accepted" });
+    await setDoc(doc(db, "hostels", req.hostelId, "students", currentUser.uid), {
+      uid: currentUser.uid, name: currentUser.name, careId: currentUser.careId,
+      joinedAt: serverTimestamp(),
+    });
+    await setDoc(doc(db, "users", currentUser.uid), {
+      hostel: { role: "student", hostelId: req.hostelId },
+    }, { merge: true });
+    onAccepted(req.hostelId);
   };
-  const handleDecline = (key) => {
-    setIncomingRequests(rs => rs.filter(r => r.key !== key));
+
+  const handleDecline = async (req) => {
+    await updateDoc(doc(db, "connectionRequests", req.id), { status: "declined" });
   };
 
   return (
     <div>
-      {incomingRequests.length > 0 && (
+      {pendingRequests.length > 0 && (
         <div style={{ marginBottom: 16 }}>
           <SchSectionTitle>Connection Requests</SchSectionTitle>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {incomingRequests.map(r => (
+            {pendingRequests.map(r => (
               <PendingRequestCard
-                key={r.key} name={r.name} sub={r.sub} initials={r.initials} bg={r.bg} fg={r.fg}
-                onAccept={() => handleAccept(r.key)} onDecline={() => handleDecline(r.key)}
+                key={r.id} name={r.fromName} sub="Wants to add you as a student"
+                initials={getInitialsFrom(r.fromName)} bg="#E4F3EA" fg={GREEN}
+                onAccept={() => handleAccept(r)} onDecline={() => handleDecline(r)}
               />
             ))}
           </div>
         </div>
       )}
-      {connectedNote && (
+
+      {hostelId && hostelInfo && (
         <div style={{
           background: "#E4F3EA", borderRadius: 12, padding: 12, marginBottom: 16,
           display: "flex", alignItems: "center", gap: 10, fontSize: 12.5, color: "#1A1A1A"
         }}>
-          <CheckCircle2 size={16} color={GREEN} /> {connectedNote}
+          <CheckCircle2 size={16} color={GREEN} style={{ flexShrink: 0 }} />
+          You're a student at <b>&nbsp;{hostelInfo.name}</b>
         </div>
       )}
-      {/* Top stats */}
+
+      {!hostelId && pendingRequests.length === 0 && (
+        <div style={{
+          background: "#fff", border: "1px solid #ECEDE8", borderRadius: 14, padding: 16,
+          marginBottom: 16, fontSize: 12.5, color: "#6b6d66", lineHeight: 1.6
+        }}>
+          You're not part of a hostel yet. Share your CARE ID with your hostel manager so they can add you.
+        </div>
+      )}
+
+      {/* Top stats — illustrative demo content until room/rent/meal tracking is built */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 16 }}>
         {studentTopStats.map(s => {
           const Icon = s.icon;
@@ -2044,9 +2184,86 @@ function StudentDashboard() {
 }
 
 function HostelScreen({ onBack }) {
+  const currentUser = useCurrentUser();
+  const [loadingRole, setLoadingRole] = useState(true);
   const [role, setRole] = useState(null);
+  const [hostelId, setHostelId] = useState(null);
+  const [hostelInfo, setHostelInfo] = useState(null);
   const [activeHostelTab, setActiveHostelTab] = useState("dashboard");
   const tabs = role === "manager" ? managerTabs : studentTabs;
+
+  useEffect(() => {
+    if (!currentUser) return;
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, "users", currentUser.uid));
+        const data = snap.exists() ? snap.data() : {};
+        if (data.hostel) {
+          setRole(data.hostel.role);
+          setHostelId(data.hostel.hostelId || null);
+        }
+      } catch (err) {
+        console.error("Failed to load hostel role:", err);
+      }
+      setLoadingRole(false);
+    })();
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (!hostelId) { setHostelInfo(null); return; }
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, "hostels", hostelId));
+        if (snap.exists()) setHostelInfo(snap.data());
+      } catch (err) {
+        console.error("Failed to load hostel info:", err);
+      }
+    })();
+  }, [hostelId]);
+
+  const handleChooseRole = async (r) => {
+    if (!currentUser) return;
+    if (r === "manager") {
+      const newHostelRef = await addDoc(collection(db, "hostels"), {
+        name: `${currentUser.name}'s Hostel`,
+        managerUid: currentUser.uid,
+        managerName: currentUser.name,
+        createdAt: serverTimestamp(),
+      });
+      await setDoc(doc(db, "users", currentUser.uid), {
+        hostel: { role: "manager", hostelId: newHostelRef.id },
+      }, { merge: true });
+      setHostelId(newHostelRef.id);
+    } else {
+      await setDoc(doc(db, "users", currentUser.uid), {
+        hostel: { role: "student", hostelId: null },
+      }, { merge: true });
+      setHostelId(null);
+    }
+    setRole(r);
+    setActiveHostelTab("dashboard");
+  };
+
+  const handleSwitchRole = async () => {
+    setRole(null);
+    setHostelId(null);
+    setHostelInfo(null);
+    if (currentUser) {
+      await setDoc(doc(db, "users", currentUser.uid), { hostel: null }, { merge: true });
+    }
+  };
+
+  const handleAccepted = (newHostelId) => {
+    setHostelId(newHostelId);
+  };
+
+  if (loadingRole) {
+    return (
+      <div style={{ padding: "60px 20px", textAlign: "center", color: "#8B8D86", fontSize: 13 }}>
+        Loading...
+      </div>
+    );
+  }
 
   if (!role) {
     return (
@@ -2059,7 +2276,7 @@ function HostelScreen({ onBack }) {
             <ArrowLeft size={18} color="#1A1A1A" />
           </button>
         </div>
-        <RolePicker onChoose={(r) => { setRole(r); setActiveHostelTab("dashboard"); }} />
+        <RolePicker onChoose={handleChooseRole} />
       </div>
     );
   }
@@ -2083,7 +2300,7 @@ function HostelScreen({ onBack }) {
           </div>
           <div>
             <div style={{ fontWeight: 700, fontSize: 16.5, color: "#1A1A1A" }}>
-              {role === "manager" ? "Hostel Manager" : "Good Morning, Rakib 👋"}
+              {role === "manager" ? "Hostel Manager" : `Good Morning, ${(currentUser?.name || "there").split(" ")[0]} 👋`}
             </div>
             <div style={{ fontSize: 11, color: "#8B8D86" }}>
               {role === "manager" ? "Manager Dashboard" : "Have a great day!"}
@@ -2106,7 +2323,7 @@ function HostelScreen({ onBack }) {
         {/* CARE ID + role switch */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "8px 0 14px" }}>
           <CareIdBadge compact />
-          <button onClick={() => setRole(null)} style={{
+          <button onClick={handleSwitchRole} style={{
             background: "none", border: "1px solid #ECEDE8", borderRadius: 999, padding: "5px 10px",
             fontSize: 11.5, fontWeight: 600, color: "#6b6d66", display: "flex", alignItems: "center", gap: 5, cursor: "pointer"
           }}>
@@ -2114,7 +2331,11 @@ function HostelScreen({ onBack }) {
           </button>
         </div>
 
-        {role === "manager" ? <ManagerDashboard /> : <StudentDashboard />}
+        {role === "manager" ? (
+          <ManagerDashboard currentUser={currentUser} hostelId={hostelId} hostelInfo={hostelInfo} />
+        ) : (
+          <StudentDashboard currentUser={currentUser} hostelId={hostelId} hostelInfo={hostelInfo} onAccepted={handleAccepted} />
+        )}
 
         {/* Section tabs */}
         <div style={{ display: "flex", justifyContent: "space-between", background: "#fff", border: "1px solid #ECEDE8", borderRadius: 14, padding: "8px 4px", marginTop: 20 }}>
