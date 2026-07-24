@@ -1,6 +1,6 @@
 import {
   BedDouble, GraduationCap, HeartPulse, Wallet, ClipboardCheck, Briefcase, Users, Moon,
-  Wallet2, Pill, ListTodo, StickyNote, Utensils, BookOpen,
+  Wallet2, Pill, ListTodo, StickyNote, Utensils, BookOpen, Rocket,
 } from "lucide-react";
 
 export const services = [
@@ -12,6 +12,7 @@ export const services = [
   { key: "travel", name: "Travel", sub: "Tour & trip", icon: Briefcase, bg: "#E3F4F8", fg: "#1CA6C2" },
   { key: "family", name: "Family Tree", sub: "Stay connected", icon: Users, bg: "#E7F3E6", fg: "#4C9A3E" },
   { key: "prayer", name: "Prayer", sub: "Salah & reminder", icon: Moon, bg: "#EFEAFB", fg: "#6E4FD1" },
+  { key: "career", name: "Career Hub", sub: "CV, jobs & AI tools", icon: Rocket, bg: "#E4F3EA", fg: "#1F8A5A" },
 ];
 
 export const quickActions = [
