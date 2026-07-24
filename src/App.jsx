@@ -1,11 +1,8 @@
 import React from "react";
 import { Routes, Route } from "react-router-dom";
-
 import AppLayout from "./AppLayout";
-
 import HomePage from "./pages/Home";
 import ProfilePage from "./pages/Profile";
-
 import HealthPage from "./modules/health/pages/HealthPage";
 import FamilyPage from "./modules/family/pages/FamilyPage";
 import TravelPage from "./modules/travel/pages/TravelPage";
@@ -14,7 +11,6 @@ import PrayerPage from "./modules/prayer/pages/PrayerPage";
 import SchoolPage from "./modules/school/pages/SchoolPage";
 import CareerPage from "./modules/career/pages/CareerPage";
 import DailyTaskPage from "./modules/daily-task/pages/DailyTaskPage";
-
 import HostelLayout from "./modules/hostel/pages/HostelLayout";
 import HostelDashboard from "./modules/hostel/pages/Dashboard";
 import HostelStudents from "./modules/hostel/pages/Students";
