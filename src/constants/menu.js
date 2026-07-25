@@ -1,5 +1,5 @@
 import {
-  BedDouble, GraduationCap, HeartPulse, Wallet, ClipboardCheck, Briefcase, Users, Landmark,
+  BedDouble, GraduationCap, HeartPulse, Wallet, ClipboardCheck, Briefcase, Users, Landmark, Rocket,
 } from "lucide-react";
 
 export const allServicesList = [
@@ -11,4 +11,5 @@ export const allServicesList = [
   { key: "travel", name: "Travel", icon: Briefcase, bg: "#E3F4F8", fg: "#1CA6C2" },
   { key: "family", name: "Family Tree", icon: Users, bg: "#E7F3E6", fg: "#4C9A3E" },
   { key: "prayer", name: "Prayer", icon: Landmark, bg: "#EFEAFB", fg: "#6E4FD1" },
+  { key: "career", name: "Career Hub", icon: Rocket, bg: "#E4F3EA", fg: "#1F8A5A" },
 ];

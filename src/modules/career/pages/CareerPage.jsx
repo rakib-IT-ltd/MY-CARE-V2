@@ -7,6 +7,7 @@ import {
 import { useCurrentUser } from "../../../contexts/CurrentUserContext";
 import { GREEN, GREEN_DARK } from "../../../constants/colors";
 import CareLogo from "../../../components/CareLogo";
+import CareIdBadge from "../../../components/CareIdBadge";
 
 const tools = [
   { key: "cv", name: "AI CV Builder", sub: "Create professional CV in 1 minute", icon: FileText, bg: "#E4F3EA", fg: "#1F8A5A" },
@@ -71,6 +72,9 @@ export default function CareerPage() {
       </div>
 
       <div style={{ padding: "6px 20px 0" }}>
+        <div style={{ margin: "8px 0 0" }}>
+          <CareIdBadge compact />
+        </div>
         {/* Smart Career Tools banner */}
         <div style={{
           margin: "10px 0", borderRadius: 18, padding: "22px 20px",

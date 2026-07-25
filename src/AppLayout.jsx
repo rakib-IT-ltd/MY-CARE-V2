@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
-import { Home as HomeIcon, Search, Bell, Plus, User, Briefcase } from "lucide-react";
+import { Home as HomeIcon, Search, Bell, Plus, User } from "lucide-react";
 import { GREEN, GREEN_DARK } from "./constants/colors";
 import MenuDrawer from "./components/MenuDrawer";
 
@@ -11,7 +11,6 @@ export default function AppLayout() {
 
   const isHome = location.pathname === "/";
   const isProfile = location.pathname === "/profile";
-  const isCareer = location.pathname.startsWith("/career");
 
   return (
     <div style={{
@@ -32,11 +31,6 @@ export default function AppLayout() {
           style={{ background: "none", border: "none", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, cursor: "pointer" }}>
           <HomeIcon size={20} color={isHome ? GREEN : "#9a9c95"} />
           <span style={{ fontSize: 10.5, color: isHome ? GREEN : "#9a9c95", fontWeight: 600 }}>Home</span>
-        </button>
-        <button onClick={() => navigate("/career")}
-          style={{ background: "none", border: "none", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, cursor: "pointer" }}>
-          <Briefcase size={20} color={isCareer ? GREEN : "#9a9c95"} />
-          <span style={{ fontSize: 10.5, color: isCareer ? GREEN : "#9a9c95", fontWeight: 600 }}>Career</span>
         </button>
         <button onClick={() => navigate("/")} style={{
           width: 48, height: 48, borderRadius: "50%", background: GREEN_DARK, border: "none",

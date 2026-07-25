@@ -7,4 +7,5 @@ export const SERVICE_ROUTES = {
   travel: "/travel",
   family: "/family",
   prayer: "/prayer",
+  career: "/career",
 };
