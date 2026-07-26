@@ -24,12 +24,12 @@ export default function MenuDrawer({ open, onClose }) {
       <div
         onClick={onClose}
         style={{
-          position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", zIndex: 40,
+          position: "absolute", inset: 0, background: "rgba(0,0,0,0.35)", zIndex: 40,
           opacity: open ? 1 : 0, pointerEvents: open ? "auto" : "none", transition: "opacity 0.2s"
         }}
       />
       <div style={{
-        position: "fixed", top: 0, bottom: 0, left: 0, width: "78%", maxWidth: 300,
+        position: "absolute", top: 0, bottom: 0, left: 0, width: "78%", maxWidth: 300,
         background: "#fff", zIndex: 41, boxShadow: "2px 0 16px rgba(0,0,0,0.12)",
         transform: open ? "translateX(0)" : "translateX(-100%)", transition: "transform 0.22s ease",
         display: "flex", flexDirection: "column", overflowY: "auto"
