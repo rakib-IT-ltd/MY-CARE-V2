@@ -3,6 +3,7 @@ import { Routes, Route } from "react-router-dom";
 import AppLayout from "./AppLayout";
 import HomePage from "./pages/Home";
 import ProfilePage from "./pages/Profile";
+import EditProfilePage from "./pages/EditProfile";
 import HealthPage from "./modules/health/pages/HealthPage";
 import FamilyPage from "./modules/family/pages/FamilyPage";
 import TravelPage from "./modules/travel/pages/TravelPage";
@@ -24,6 +25,7 @@ export default function App() {
       <Route element={<AppLayout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/profile/edit" element={<EditProfilePage />} />
         <Route path="/health" element={<HealthPage />} />
         <Route path="/family" element={<FamilyPage />} />
         <Route path="/travel" element={<TravelPage />} />

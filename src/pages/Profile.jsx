@@ -16,7 +16,7 @@ export default function ProfilePage() {
   const initials = currentUser?.initials || "NA";
 
   const profileMenu = [
-    { key: "edit", name: "Edit Profile", icon: User },
+    { key: "edit", name: "Edit Profile", icon: User, onClick: () => navigate("/profile/edit") },
     { key: "notifications", name: "Notification Settings", icon: Bell },
     { key: "privacy", name: "Privacy & Security", icon: Shield },
     { key: "settings", name: "App Settings", icon: Settings },
@@ -71,7 +71,7 @@ export default function ProfilePage() {
           {profileMenu.map((m, i) => {
             const Icon = m.icon;
             return (
-              <div key={m.key} style={{
+              <div key={m.key} onClick={m.onClick} style={{
                 display: "flex", alignItems: "center", gap: 12, padding: "13px 0",
                 borderBottom: i < profileMenu.length - 1 ? "1px solid #F0F1EC" : "none", cursor: "pointer"
               }}>

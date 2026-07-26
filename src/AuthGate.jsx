@@ -116,6 +116,31 @@ export default function AuthGate({ children }) {
   const [mode, setMode] = useState("signup");
   const [currentUser, setCurrentUser] = useState(null);
 
+  const buildUserObject = async (fbUser) => {
+    const snap = await getDoc(doc(db, "users", fbUser.uid));
+    const data = snap.exists() ? snap.data() : {};
+    const name = data.name || fbUser.displayName || "New User";
+    return {
+      uid: fbUser.uid,
+      name,
+      email: data.email || fbUser.email,
+      careId: data.careId || "CARE-00000-NA",
+      initials: getInitialsFrom(name),
+      dob: data.dob || "",
+      gender: data.gender || "",
+      bloodGroup: data.bloodGroup || "",
+      occupation: data.occupation || "",
+      address: data.address || "",
+      emergencyContact: data.emergencyContact || "",
+    };
+  };
+
+  const refreshProfile = async () => {
+    if (!auth.currentUser) return;
+    const user = await buildUserObject(auth.currentUser);
+    setCurrentUser(user);
+  };
+
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (fbUser) => {
       if (!fbUser) {
@@ -124,16 +149,8 @@ export default function AuthGate({ children }) {
         return;
       }
       try {
-        const snap = await getDoc(doc(db, "users", fbUser.uid));
-        const data = snap.exists() ? snap.data() : {};
-        const name = data.name || fbUser.displayName || "New User";
-        setCurrentUser({
-          uid: fbUser.uid,
-          name,
-          email: data.email || fbUser.email,
-          careId: data.careId || "CARE-00000-NA",
-          initials: getInitialsFrom(name),
-        });
+        const user = await buildUserObject(fbUser);
+        setCurrentUser(user);
         setStatus("signedIn");
       } catch (err) {
         console.error("Failed to load user profile:", err);
@@ -159,7 +176,7 @@ export default function AuthGate({ children }) {
   }
 
   return (
-    <CurrentUserContext.Provider value={currentUser}>
+    <CurrentUserContext.Provider value={currentUser ? { ...currentUser, refreshProfile } : null}>
       {children}
     </CurrentUserContext.Provider>
   );
