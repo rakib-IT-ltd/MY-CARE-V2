@@ -17,7 +17,7 @@ export default function ProfilePage() {
 
   const profileMenu = [
     { key: "edit", name: "Edit Profile", icon: User, onClick: () => navigate("/profile/edit") },
-    { key: "notifications", name: "Notification Settings", icon: Bell },
+    { key: "notifications", name: "Notification Settings", icon: Bell, onClick: () => navigate("/profile/notifications") },
     { key: "privacy", name: "Privacy & Security", icon: Shield },
     { key: "settings", name: "App Settings", icon: Settings },
     { key: "help", name: "Help & Support", icon: HelpCircle },
