@@ -5,6 +5,7 @@ import HomePage from "./pages/Home";
 import ProfilePage from "./pages/Profile";
 import EditProfilePage from "./pages/EditProfile";
 import NotificationSettingsPage from "./pages/NotificationSettings";
+import PrivacySecurityPage from "./pages/PrivacySecurity";
 import HealthPage from "./modules/health/pages/HealthPage";
 import FamilyPage from "./modules/family/pages/FamilyPage";
 import TravelPage from "./modules/travel/pages/TravelPage";
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/profile/edit" element={<EditProfilePage />} />
         <Route path="/profile/notifications" element={<NotificationSettingsPage />} />
+        <Route path="/profile/privacy" element={<PrivacySecurityPage />} />
         <Route path="/health" element={<HealthPage />} />
         <Route path="/family" element={<FamilyPage />} />
         <Route path="/travel" element={<TravelPage />} />

@@ -5,7 +5,7 @@ import {
   signInWithEmailAndPassword,
   updateProfile,
 } from "firebase/auth";
-import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, getDoc, addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { auth } from "./firebase/auth";
 import { db } from "./firebase/firestore";
 import { CurrentUserContext } from "./contexts/CurrentUserContext";
@@ -38,8 +38,18 @@ function AuthForm({ mode, onSwitchMode }) {
           careId,
           createdAt: serverTimestamp(),
         });
+        await addDoc(collection(db, "users", cred.user.uid, "loginHistory"), {
+          event: "Account created",
+          timestamp: serverTimestamp(),
+          userAgent: navigator.userAgent,
+        });
       } else {
-        await signInWithEmailAndPassword(auth, email, password);
+        const cred = await signInWithEmailAndPassword(auth, email, password);
+        await addDoc(collection(db, "users", cred.user.uid, "loginHistory"), {
+          event: "Signed in",
+          timestamp: serverTimestamp(),
+          userAgent: navigator.userAgent,
+        });
       }
     } catch (err) {
       setError(err.message.replace("Firebase: ", ""));
