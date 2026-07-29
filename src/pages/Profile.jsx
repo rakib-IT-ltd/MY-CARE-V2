@@ -20,7 +20,7 @@ export default function ProfilePage() {
     { key: "notifications", name: "Notification Settings", icon: Bell, onClick: () => navigate("/profile/notifications") },
     { key: "privacy", name: "Privacy & Security", icon: Shield, onClick: () => navigate("/profile/privacy") },
     { key: "settings", name: "App Settings", icon: Settings, onClick: () => navigate("/profile/settings") },
-    { key: "help", name: "Help & Support", icon: HelpCircle },
+    { key: "help", name: "Help & Support", icon: HelpCircle, onClick: () => navigate("/profile/help") },
   ];
 
   return (

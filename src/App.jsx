@@ -7,6 +7,10 @@ import EditProfilePage from "./pages/EditProfile";
 import NotificationSettingsPage from "./pages/NotificationSettings";
 import PrivacySecurityPage from "./pages/PrivacySecurity";
 import AppSettingsPage from "./pages/AppSettings";
+import HelpSupportPage from "./pages/HelpSupport";
+import FaqPage from "./pages/Faq";
+import FeedbackFormPage from "./pages/FeedbackForm";
+import LegalPage from "./pages/Legal";
 import HealthPage from "./modules/health/pages/HealthPage";
 import FamilyPage from "./modules/family/pages/FamilyPage";
 import TravelPage from "./modules/travel/pages/TravelPage";
@@ -32,6 +36,10 @@ export default function App() {
         <Route path="/profile/notifications" element={<NotificationSettingsPage />} />
         <Route path="/profile/privacy" element={<PrivacySecurityPage />} />
         <Route path="/profile/settings" element={<AppSettingsPage />} />
+        <Route path="/profile/help" element={<HelpSupportPage />} />
+        <Route path="/profile/help/faq" element={<FaqPage />} />
+        <Route path="/profile/help/feedback/:type" element={<FeedbackFormPage />} />
+        <Route path="/profile/help/legal/:doc" element={<LegalPage />} />
         <Route path="/health" element={<HealthPage />} />
         <Route path="/family" element={<FamilyPage />} />
         <Route path="/travel" element={<TravelPage />} />
