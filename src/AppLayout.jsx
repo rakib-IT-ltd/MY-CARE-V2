@@ -16,16 +16,23 @@ export default function AppLayout() {
     <div style={{
       maxWidth: 420, margin: "0 auto", background: "linear-gradient(180deg,#F3FAF6 0%,#F7F8F4 220px)",
       fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-      minHeight: 700, position: "relative", paddingBottom: 78,
-      borderRadius: 28, overflow: "hidden", border: "1px solid #e7e8e2"
+      height: "100dvh", display: "flex", flexDirection: "column",
+      position: "relative", overflow: "hidden",
+      borderRadius: 28, border: "1px solid #e7e8e2"
     }}>
-      <Outlet context={{ onOpenMenu: () => setMenuOpen(true) }} />
+      {/* Scrollable content area — this is the ONLY part that scrolls.
+          Each page's own header currently scrolls with its content; making
+          headers sticky per-page is a separate follow-up (see chat). */}
+      <div style={{ flex: 1, overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
+        <Outlet context={{ onOpenMenu: () => setMenuOpen(true) }} />
+      </div>
 
-      {/* Bottom Nav */}
+      {/* Bottom Nav — a normal flex sibling of the scroll area, not an overlay,
+          so it never moves or hides while content scrolls. */}
       <div style={{
-        position: "absolute", bottom: 0, left: 0, right: 0, background: "#fff",
+        flexShrink: 0, background: "#fff",
         borderTop: "1px solid #ECEDE8", display: "flex", alignItems: "center",
-        padding: "10px 4px 14px"
+        padding: "10px 4px 14px", position: "relative", zIndex: 30
       }}>
         <div style={{ flex: 1, display: "flex", justifyContent: "space-around" }}>
           <button onClick={() => navigate("/")}
