@@ -142,6 +142,7 @@ export default function AuthGate({ children }) {
       occupation: data.occupation || "",
       address: data.address || "",
       emergencyContact: data.emergencyContact || "",
+      phone: data.phone || "",
     };
   };
 
